@@ -12,8 +12,7 @@ class TripPolicy
      */
     public function viewAny(User $user): bool
     {
-        return true; 
-        // ou restringir por role se quiser
+        return true; // Todos os usuários autenticados podem ver a lista
     }
 
     /**
@@ -21,11 +20,11 @@ class TripPolicy
      */
     public function view(User $user, Trip $trip): bool
     {
-        if ($user->role === 'admin') {
+        if ($user->isAdmin() || $user->isOperator()) {
             return true;
         }
 
-        return $trip->driver_id === $user->id;
+        return $user->isDriver() && $trip->driver_id === $user->id;
     }
 
     /**
@@ -33,7 +32,7 @@ class TripPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role === 'admin';
+        return $user->isAdmin() || $user->isOperator();
     }
 
     /**
@@ -41,7 +40,11 @@ class TripPolicy
      */
     public function update(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin';
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->isOperator() && $trip->operator_id === $user->id;
     }
 
     /**
@@ -49,7 +52,7 @@ class TripPolicy
      */
     public function delete(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin';
+        return $user->isAdmin();
     }
 
     /**
@@ -57,7 +60,7 @@ class TripPolicy
      */
     public function restore(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin';
+        return $user->isAdmin();
     }
 
     /**
@@ -65,7 +68,7 @@ class TripPolicy
      */
     public function forceDelete(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin';
+        return $user->isAdmin();
     }
 
     /**
@@ -73,7 +76,7 @@ class TripPolicy
      */
     public function start(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin' || $trip->driver_id === $user->id;
+        return $user->isAdmin() || $trip->driver_id === $user->id;
     }
 
     /**
@@ -81,6 +84,30 @@ class TripPolicy
      */
     public function finish(User $user, Trip $trip): bool
     {
-        return $user->role === 'admin' || $trip->driver_id === $user->id;
+        return $user->isAdmin() || $trip->driver_id === $user->id;
+    }
+
+    /**
+     * Cancelar viagem
+     */
+    public function cancel(User $user, Trip $trip): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isOperator() && $trip->operator_id === $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Atribuir motorista à viagem
+     */
+    public function assignDriver(User $user, Trip $trip): bool
+    {
+        return $user->isAdmin() || $user->isOperator();
     }
 }

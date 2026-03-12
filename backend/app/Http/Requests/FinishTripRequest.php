@@ -6,23 +6,21 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class FinishTripRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()->can('finish', $this->route('trip'));
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
+        $trip = $this->route('trip');
+
         return [
-            'final_odometer' => ['required','integer','min:0']
+            'final_odometer' => [
+                'required',
+                'integer',
+                'min:' . ($trip->initial_odometer ?? 0)
+            ]
         ];
     }
 }

@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Trip;
+use App\Enums\TripStatus;
 use Illuminate\Http\Request;
 use App\Services\TripService;
+use App\Http\Requests\StoreTripRequest;
+use App\Http\Requests\StartTripRequest;
+use App\Http\Requests\FinishTripRequest;
+use App\Http\Requests\CancelTripRequest;
 use Illuminate\Http\JsonResponse;
 use Exception;
 
@@ -22,11 +27,25 @@ class TripController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Trip::class);
+
         $query = Trip::query()
-            ->with(['driver', 'vehicle', 'creator']);
+            ->with(['driver', 'vehicle', 'operator']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        if ($request->filled('driver_id')) {
+            $query->where('driver_id', $request->driver_id);
+        }
+
+        if ($request->filled('operator_id')) {
+            $query->where('operator_id', $request->operator_id);
+        }
+
+        if ($request->user()->isDriver()) {
+            $query->where('driver_id', $request->user()->id);
         }
 
         $trips = $query->latest()->paginate(15);
@@ -35,25 +54,25 @@ class TripController extends Controller
     }
 
     /**
-     * Criar viagem (Operador)
+     * Criar viagem
      */
     public function store(StoreTripRequest $request): JsonResponse
     {
         $this->authorize('create', Trip::class);
 
-        $trip = Trip::create([
-            'patient_name' => $request->patient_name,
-            'destination' => $request->destination,
-            'driver_id' => $request->driver_id,
-            'vehicle_id' => $request->vehicle_id,
-            'scheduled_at' => $request->scheduled_at,
-            'created_by' => auth()->id(),
-        ]);
+        try {
+            $data = $request->validated();
+            $trip = $this->tripService->createTrip($data);
 
-        return response()->json([
-            'message' => 'Viagem criada com sucesso.',
-            'data' => $trip
-        ], 201);
+            return response()->json([
+                'message' => 'Viagem criada com sucesso.',
+                'data' => $trip
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
@@ -61,20 +80,21 @@ class TripController extends Controller
      */
     public function show(Trip $trip): JsonResponse
     {
-        $trip->load(['driver', 'vehicle', 'creator']);
+        $this->authorize('view', $trip);
+
+        $trip->load(['driver', 'vehicle', 'operator']);
 
         return response()->json($trip);
     }
 
     /**
-     * Iniciar viagem (Motorista)
+     * Iniciar viagem
      */
     public function start(StartTripRequest $request, Trip $trip): JsonResponse
     {
         $this->authorize('start', $trip);
 
         try {
-
             $trip = $this->tripService->startTrip(
                 $trip,
                 $request->integer('initial_odometer')
@@ -84,25 +104,21 @@ class TripController extends Controller
                 'message' => 'Viagem iniciada com sucesso.',
                 'data' => $trip
             ]);
-
         } catch (Exception $e) {
-
             return response()->json([
                 'message' => $e->getMessage()
             ], 400);
-
         }
     }
 
     /**
-     * Finalizar viagem (Motorista)
+     * Finalizar viagem
      */
     public function finish(FinishTripRequest $request, Trip $trip): JsonResponse
     {
         $this->authorize('finish', $trip);
 
         try {
-
             $trip = $this->tripService->finishTrip(
                 $trip,
                 $request->integer('final_odometer')
@@ -112,29 +128,34 @@ class TripController extends Controller
                 'message' => 'Viagem finalizada com sucesso.',
                 'data' => $trip
             ]);
-
         } catch (Exception $e) {
-
             return response()->json([
                 'message' => $e->getMessage()
             ], 400);
-
         }
     }
 
     /**
      * Cancelar viagem
      */
-    public function cancel(Trip $trip): JsonResponse
+    public function cancel(CancelTripRequest $request, Trip $trip): JsonResponse
     {
         $this->authorize('cancel', $trip);
 
-        $trip->update([
-            'status' => 'cancelled'
-        ]);
+        try {
+            $trip = $this->tripService->cancelTrip(
+                $trip,
+                $request->cancellation_reason
+            );
 
-        return response()->json([
-            'message' => 'Viagem cancelada com sucesso.'
-        ]);
+            return response()->json([
+                'message' => 'Viagem cancelada com sucesso.',
+                'data' => $trip
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }
