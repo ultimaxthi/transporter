@@ -19,7 +19,7 @@ export default function AdminLayout({ children }) {
     <div className="min-h-screen flex flex-col bg-gray-50">
 
       {/* NAVBAR */}
-      <nav className="bg-[#1a3a5c] text-white px-8 py-4 flex items-center justify-between shadow-lg">
+      <nav className="bg-[#1a3a5c] text-white px-8 py-4 flex items-center justify-between shadow-lg w-full">
 
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -82,7 +82,7 @@ export default function AdminLayout({ children }) {
       </nav>
 
       {/* CONTENT */}
-      <main className="flex-1 px-10 py-8 max-w-screen-xl mx-auto w-full">
+      <main className="flex-1 px-8 py-8 w-full">
         {children}
       </main>
 
